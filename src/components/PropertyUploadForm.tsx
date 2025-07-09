@@ -3,11 +3,16 @@
 import { useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react';
+import { compressImage, formatFileSize, isValidImageType, isFileSizeValid } from '../utils/imageCompression';
+import CompressionStats from './CompressionStats';
 
 interface UploadedImage {
   file: File;
+  originalFile?: File;
   url: string;
   id: string;
+  originalSize?: number;
+  compressedSize?: number;
 }
 
 interface AnalysisResult {
@@ -19,6 +24,7 @@ interface AnalysisResult {
 
 export default function PropertyUploadForm() {
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+  const [isCompressing, setIsCompressing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult>({
     description: '',
     features: [],
@@ -26,18 +32,65 @@ export default function PropertyUploadForm() {
     error: null
   });
 
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const processAndCompressFile = async (file: File): Promise<UploadedImage> => {
+    const id = Math.random().toString(36).substring(7);
+    const originalSize = file.size;
+    
+    // Validate file type
+    if (!isValidImageType(file)) {
+      throw new Error(`Invalid file type: ${file.type}`);
+    }
+    
+    // Check if compression is needed
+    let processedFile = file;
+    let compressedSize = originalSize;
+    
+    if (!isFileSizeValid(file, 500)) {
+      // Compress the image if it's too large
+      processedFile = await compressImage(file, {
+        maxWidth: 1920,
+        maxHeight: 1080,
+        quality: 0.8,
+        maxSizeKB: 500,
+        format: 'jpeg'
+      });
+      compressedSize = processedFile.size;
+    }
+    
+    const url = URL.createObjectURL(processedFile);
+    
+    return {
+      file: processedFile,
+      originalFile: file,
+      url,
+      id,
+      originalSize,
+      compressedSize
+    };
+  };
+
+  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
 
-    Array.from(files).forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        const id = Math.random().toString(36).substring(7);
-        
-        setUploadedImages(prev => [...prev, { file, url, id }]);
-      }
-    });
+    setIsCompressing(true);
+    
+    try {
+      const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'));
+      const processedImages = await Promise.all(
+        fileArray.map(file => processAndCompressFile(file))
+      );
+      
+      setUploadedImages(prev => [...prev, ...processedImages]);
+    } catch (error) {
+      console.error('Error processing images:', error);
+      setAnalysisResult(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Failed to process images'
+      }));
+    } finally {
+      setIsCompressing(false);
+    }
   }, []);
 
   const removeImage = useCallback((id: string) => {
@@ -90,18 +143,28 @@ export default function PropertyUploadForm() {
     event.preventDefault();
   };
 
-  const handleDrop = (event: React.DragEvent) => {
+  const handleDrop = async (event: React.DragEvent) => {
     event.preventDefault();
     const files = event.dataTransfer.files;
     
-    Array.from(files).forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        const id = Math.random().toString(36).substring(7);
-        
-        setUploadedImages(prev => [...prev, { file, url, id }]);
-      }
-    });
+    setIsCompressing(true);
+    
+    try {
+      const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'));
+      const processedImages = await Promise.all(
+        fileArray.map(file => processAndCompressFile(file))
+      );
+      
+      setUploadedImages(prev => [...prev, ...processedImages]);
+    } catch (error) {
+      console.error('Error processing images:', error);
+      setAnalysisResult(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Failed to process images'
+      }));
+    } finally {
+      setIsCompressing(false);
+    }
   };
 
   return (
@@ -119,6 +182,9 @@ export default function PropertyUploadForm() {
           <p className="text-gray-600 mb-4">
             Drag and drop your property images here, or click to select files
           </p>
+          <p className="text-sm text-gray-500 mb-4">
+            Images will be automatically compressed to optimize size (max 500KB each)
+          </p>
           <input
             type="file"
             multiple
@@ -126,12 +192,24 @@ export default function PropertyUploadForm() {
             onChange={handleFileUpload}
             className="hidden"
             id="file-upload"
+            disabled={isCompressing}
           />
           <label
             htmlFor="file-upload"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
+            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
+              isCompressing 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+            }`}
           >
-            Select Images
+            {isCompressing ? (
+              <>
+                <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                Compressing Images...
+              </>
+            ) : (
+              'Select Images'
+            )}
           </label>
         </div>
       </div>
@@ -143,30 +221,50 @@ export default function PropertyUploadForm() {
             Uploaded Images ({uploadedImages.length})
           </h3>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+          <CompressionStats images={uploadedImages} />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {uploadedImages.map(image => (
-              <div key={image.id} className="relative group">
-                <Image
-                  src={image.url}
-                  alt="Property"
-                  width={200}
-                  height={128}
-                  className="w-full h-32 object-cover rounded-lg"
-                  unoptimized
-                />
-                <button
-                  onClick={() => removeImage(image.id)}
-                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+              <div key={image.id} className="relative group bg-gray-50 rounded-lg p-3">
+                <div className="relative">
+                  <Image
+                    src={image.url}
+                    alt="Property"
+                    width={200}
+                    height={128}
+                    className="w-full h-32 object-cover rounded-lg"
+                    unoptimized
+                  />
+                  <button
+                    onClick={() => removeImage(image.id)}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                
+                {/* File size information */}
+                <div className="mt-2 text-xs text-gray-600">
+                  <div className="flex justify-between items-center">
+                    <span className="truncate">{image.file.name}</span>
+                    <span className="text-green-600 font-medium">
+                      {formatFileSize(image.compressedSize || image.file.size)}
+                    </span>
+                  </div>
+                  {image.originalSize && image.originalSize !== image.compressedSize && (
+                    <div className="text-gray-500 mt-1">
+                      Original: {formatFileSize(image.originalSize)} → 
+                      Saved: {formatFileSize(image.originalSize - (image.compressedSize || 0))}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
 
           <button
             onClick={analyzeImages}
-            disabled={analysisResult.loading}
+            disabled={analysisResult.loading || isCompressing}
             className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {analysisResult.loading ? (

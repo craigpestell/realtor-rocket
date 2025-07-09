@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
 import OpenAI from 'openai';
+import sharp from 'sharp';
 
 // Initialize Google Cloud Vision client only if credentials are available
 const visionClient = process.env.GOOGLE_APPLICATION_CREDENTIALS ? new ImageAnnotatorClient({
@@ -12,6 +13,29 @@ const visionClient = process.env.GOOGLE_APPLICATION_CREDENTIALS ? new ImageAnnot
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 }) : null;
+
+/**
+ * Compress image using Sharp for server-side optimization
+ */
+async function compressImageServerSide(buffer: Buffer): Promise<Buffer> {
+  try {
+    const result = await sharp(buffer)
+      .resize(1920, 1080, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .jpeg({
+        quality: 80,
+        progressive: true
+      })
+      .toBuffer();
+    
+    return Buffer.from(result);
+  } catch (error) {
+    console.error('Server-side compression failed:', error);
+    return buffer; // Return original buffer if compression fails
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,7 +52,14 @@ export async function POST(request: NextRequest) {
     // Analyze each image with Google Cloud Vision
     const analysisResults = await Promise.all(
       images.map(async (image) => {
-        const buffer = Buffer.from(await image.arrayBuffer());
+        let buffer = Buffer.from(await image.arrayBuffer());
+        const originalSize = buffer.length;
+        
+        // Compress image on server-side if it's larger than 500KB
+        if (buffer.length > 500 * 1024) {
+          const compressedBuffer = await compressImageServerSide(buffer);
+          buffer = Buffer.from(compressedBuffer);
+        }
         
         if (!visionClient) {
           // Return mock data if Vision API is not configured
@@ -36,6 +67,8 @@ export async function POST(request: NextRequest) {
             features: ['house', 'building', 'property', 'real estate'],
             detectedText: '',
             filename: image.name,
+            originalSize,
+            compressedSize: buffer.length,
           };
         }
         
@@ -62,6 +95,8 @@ export async function POST(request: NextRequest) {
             features,
             detectedText,
             filename: image.name,
+            originalSize,
+            compressedSize: buffer.length,
           };
         } catch (error) {
           console.error('Vision API error:', error);
@@ -69,6 +104,8 @@ export async function POST(request: NextRequest) {
             features: ['house', 'building', 'property'],
             detectedText: '',
             filename: image.name,
+            originalSize,
+            compressedSize: buffer.length,
           };
         }
       })
