@@ -46,6 +46,84 @@ export class OllamaClient {
     }
   }
 
+  async generateFeatures(images: Buffer[], propertyType?: string): Promise<string> {
+    try {
+      const base64Images = images.map(buffer => buffer.toString('base64'));
+      
+      const prompt = `Analyze these property images and list all visible features you can identify. Focus on:
+- Architectural elements (windows, doors, columns, etc.)
+- Materials (hardwood, brick, stone, tile, etc.) 
+- Room types and layouts
+- Exterior features (roof, siding, landscaping, etc.)
+- Interior finishes and fixtures
+- Unique selling points
+
+${propertyType ? `Property Type: ${propertyType}` : ''}
+
+Provide a comprehensive comma-separated list of features.`;
+
+      const response = await this.ollama.generate({
+        model: 'llava:latest',
+        prompt,
+        images: base64Images,
+        stream: false,
+      });
+
+      return response.response;
+    } catch (error) {
+      console.error('Ollama feature generation error:', error);
+      throw new Error('Failed to generate features with Ollama');
+    }
+  }
+
+  async generateDescription(
+    images: Buffer[],
+    features: string,
+    options: {
+      targetAudience?: string;
+      priceRange?: string;
+      marketingStyle?: string;
+      propertyType?: string;
+    } = {}
+  ): Promise<string> {
+    try {
+      const base64Images = images.map(buffer => buffer.toString('base64'));
+      const { targetAudience, priceRange, marketingStyle, propertyType } = options;
+      
+      const prompt = `You are an expert real estate agent. Using the following property features and the images provided, create a compelling listing description.
+
+PROPERTY FEATURES:
+${features}
+
+CUSTOMIZATION:
+${propertyType ? `Property Type: ${propertyType}` : ''}
+${targetAudience ? `Target Audience: ${targetAudience}` : ''}
+${priceRange ? `Price Range: ${priceRange}` : ''}
+${marketingStyle ? `Marketing Style: ${marketingStyle}` : ''}
+
+Create a compelling 150-250 word listing description that:
+- Uses a warm, professional real estate tone
+- Weaves features naturally into descriptive sentences
+- Creates emotional appeal and lifestyle benefits
+- Includes a call to action
+- Sounds engaging, not robotic
+
+Focus on making buyers excited about the property.`;
+
+      const response = await this.ollama.generate({
+        model: 'llava:latest',
+        prompt,
+        images: base64Images,
+        stream: false,
+      });
+
+      return response.response;
+    } catch (error) {
+      console.error('Ollama description generation error:', error);
+      throw new Error('Failed to generate description with Ollama');
+    }
+  }
+
   private buildPrompt(options: {
     targetAudience?: string;
     priceRange?: string;

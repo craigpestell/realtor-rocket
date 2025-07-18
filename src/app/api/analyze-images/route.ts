@@ -38,6 +38,117 @@ async function compressImageServerSide(buffer: Buffer): Promise<Buffer> {
   }
 }
 
+// Helper function to generate features from images
+async function generateFeaturesFromImages(
+  images: File[],
+  apiService: string,
+  propertyType: string
+): Promise<string> {
+  if (apiService === 'ollama') {
+    try {
+      const ollamaClient = new OllamaClient();
+      const imageBuffers = await Promise.all(
+        images.map(async (image) => Buffer.from(await image.arrayBuffer()))
+      );
+      
+      return await ollamaClient.generateFeatures(imageBuffers, propertyType);
+    } catch (error) {
+      console.error('Ollama feature generation error:', error);
+      return '';
+    }
+  } else if (openai) {
+    // For OpenAI, we'll use the existing Google Vision detection
+    // This will be handled in the main function
+    return '';
+  }
+  
+  return '';
+}
+
+// Helper function to generate description using features and images  
+async function generateDescriptionFromFeaturesAndImages(
+  images: File[],
+  features: string,
+  apiService: string,
+  options: {
+    targetAudience: string;
+    priceRange: string;
+    marketingStyle: string;
+    propertyType: string;
+  }
+): Promise<string> {
+  const { targetAudience, priceRange, marketingStyle, propertyType } = options;
+  
+  if (apiService === 'ollama') {
+    try {
+      const ollamaClient = new OllamaClient();
+      const imageBuffers = await Promise.all(
+        images.map(async (image) => Buffer.from(await image.arrayBuffer()))
+      );
+      
+      return await ollamaClient.generateDescription(imageBuffers, features, {
+        targetAudience,
+        priceRange,
+        marketingStyle,
+        propertyType,
+      });
+    } catch (error) {
+      console.error('Ollama description generation error:', error);
+      throw error;
+    }
+  } else if (openai) {
+    const prompt = `Create a compelling property listing description using the following features and customization parameters:
+
+PROPERTY FEATURES:
+${features}
+
+CUSTOMIZATION:
+${propertyType ? `Property Type: ${propertyType}` : ''}
+${priceRange ? `Price Range: ${priceRange}` : ''}
+${targetAudience ? `Target Audience: ${targetAudience}` : ''}
+${marketingStyle ? `Marketing Style: ${marketingStyle}` : ''}
+
+Write a compelling property listing description that sounds like it was written by an experienced realtor. Be specific and descriptive, but natural and engaging.
+
+WRITING STYLE REQUIREMENTS:
+- Write in a warm, professional tone that real estate agents use
+- Start with an engaging opening that highlights the property's best features
+- Use natural, flowing language - avoid robotic or template-like phrasing
+- Include specific details about materials and features when mentioned
+- Create emotional appeal by describing how buyers will feel living there
+- End with a call to action that creates urgency
+- Keep it 150-250 words, structured in 2-3 natural paragraphs
+
+CONTENT GUIDELINES:
+- Weave features into descriptive sentences naturally
+- Focus on lifestyle benefits and emotional appeal
+- Use active, engaging verbs and descriptive adjectives
+- Highlight unique selling points first
+
+Make it sound like a listing a homeowner would be proud to share and buyers would be excited to see.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert real estate copywriter with 15+ years of experience creating compelling property descriptions that sell homes quickly. You specialize in identifying key selling points and crafting descriptions that create emotional connections with potential buyers.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 400,
+      temperature: 0.7,
+    });
+
+    return completion.choices[0]?.message?.content || '';
+  }
+  
+  return '';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -49,6 +160,7 @@ export async function POST(request: NextRequest) {
     const marketingStyle = formData.get('marketingStyle') as string || 'professional';
     const propertyType = formData.get('propertyType') as string || '';
     const apiService = formData.get('apiService') as string || 'openai';
+    const userFeatures = formData.get('features') as string || '';
 
     if (images.length === 0) {
       return NextResponse.json(
@@ -127,12 +239,81 @@ export async function POST(request: NextRequest) {
       .filter(Boolean)
       .join(' ');
 
-    // Generate property description using selected AI service
+    // Generate property description using selected AI service with two-step process
     let description = '';
+    let finalFeatures = userFeatures.trim();
     
-    if (apiService === 'ollama') {
-      // Use Ollama for local analysis
-      try {
+    // Step 1: Generate features if user didn't provide them
+    if (!finalFeatures) {
+      console.log('No user features provided, generating features from images...');
+      
+      if (apiService === 'ollama') {
+        try {
+          finalFeatures = await generateFeaturesFromImages(images, apiService, propertyType);
+          console.log('Generated features with Ollama:', finalFeatures);
+        } catch (error) {
+          console.error('Failed to generate features with Ollama:', error);
+          // Fallback to basic features
+          finalFeatures = uniqueFeatures.join(', ');
+        }
+      } else {
+        // For OpenAI, use Google Vision detected features with categorization
+        const categorizeFeatures = (features: string[]) => {
+          const categories = {
+            structural: [] as string[],
+            interior: [] as string[],
+            exterior: [] as string[],
+            materials: [] as string[],
+            rooms: [] as string[],
+            architectural: [] as string[]
+          };
+
+          features.forEach(feature => {
+            const lowerFeature = feature.toLowerCase();
+            
+            if (['building', 'house', 'home', 'structure', 'foundation', 'frame'].some(term => lowerFeature.includes(term))) {
+              categories.structural.push(feature);
+            }
+            else if (['interior', 'flooring', 'floor', 'ceiling', 'wall', 'furniture', 'cabinet', 'kitchen', 'bathroom', 'bedroom', 'living room', 'hardwood', 'laminate', 'carpet', 'tile'].some(term => lowerFeature.includes(term))) {
+              categories.interior.push(feature);
+            }
+            else if (['roof', 'facade', 'siding', 'exterior', 'porch', 'deck', 'patio', 'garden', 'yard', 'landscaping', 'driveway', 'garage'].some(term => lowerFeature.includes(term))) {
+              categories.exterior.push(feature);
+            }
+            else if (['wood', 'brick', 'stone', 'concrete', 'metal', 'glass', 'vinyl', 'stucco'].some(term => lowerFeature.includes(term))) {
+              categories.materials.push(feature);
+            }
+            else if (['window', 'door', 'architecture', 'column', 'archway', 'balcony', 'chimney'].some(term => lowerFeature.includes(term))) {
+              categories.architectural.push(feature);
+            }
+            else if (['neighbourhood', 'residential area', 'street', 'location'].some(term => lowerFeature.includes(term))) {
+              categories.rooms.push(feature);
+            }
+          });
+
+          return categories;
+        };
+
+        const categorizedFeatures = categorizeFeatures(uniqueFeatures);
+        const featuresList = [
+          ...categorizedFeatures.structural,
+          ...categorizedFeatures.architectural,
+          ...categorizedFeatures.exterior,
+          ...categorizedFeatures.interior,
+          ...categorizedFeatures.materials,
+          ...categorizedFeatures.rooms
+        ];
+        
+        finalFeatures = featuresList.join(', ');
+        console.log('Using Google Vision detected features:', finalFeatures);
+      }
+    } else {
+      console.log('Using user-provided features:', finalFeatures);
+    }
+    
+    // Step 2: Generate description using features and images
+    try {
+      if (apiService === 'ollama') {
         const ollamaClient = new OllamaClient();
         
         // Check if Ollama is available
@@ -140,7 +321,7 @@ export async function POST(request: NextRequest) {
         if (!isAvailable) {
           return NextResponse.json({
             error: 'Ollama service is not available. Please ensure Ollama is running locally.',
-            features: uniqueFeatures,
+            features: finalFeatures.split(', '),
             detectedText: allDetectedText,
             analysisResults,
           });
@@ -151,165 +332,45 @@ export async function POST(request: NextRequest) {
         if (!hasModel) {
           return NextResponse.json({
             error: 'Required model (llava:latest) is not available. Please run: ollama pull llava:latest',
-            features: uniqueFeatures,
+            features: finalFeatures.split(', '),
             detectedText: allDetectedText,
             analysisResults,
           });
         }
         
-        // Convert images to buffers for Ollama
-        const imageBuffers = await Promise.all(
-          images.map(async (image) => Buffer.from(await image.arrayBuffer()))
-        );
-        
-        const ollamaResult = await ollamaClient.analyzeImages(imageBuffers, {
+        description = await generateDescriptionFromFeaturesAndImages(images, finalFeatures, apiService, {
           targetAudience,
           priceRange,
           marketingStyle,
           propertyType,
         });
         
-        description = ollamaResult.description;
-        console.log('Ollama analysis completed successfully');
+        console.log('Ollama description generation completed successfully');
+      } else if (openai) {
+        description = await generateDescriptionFromFeaturesAndImages(images, finalFeatures, apiService, {
+          targetAudience,
+          priceRange,
+          marketingStyle,
+          propertyType,
+        });
         
-      } catch (ollamaError) {
-        console.error('Ollama analysis error:', ollamaError);
-        return NextResponse.json({
-          error: 'Failed to analyze images with Ollama. Please check that Ollama is running and the llava model is installed.',
-          features: uniqueFeatures,
-          detectedText: allDetectedText,
-          analysisResults,
-        });
+        console.log('OpenAI description generation completed successfully');
       }
-    } else {
-      // Use OpenAI + Google Vision (existing logic)
-      if (openai) {
-      // Categorize features for better prompt context
-      const categorizeFeatures = (features: string[]) => {
-        const categories = {
-          structural: [] as string[],
-          interior: [] as string[],
-          exterior: [] as string[],
-          materials: [] as string[],
-          rooms: [] as string[],
-          architectural: [] as string[]
-        };
-
-        features.forEach(feature => {
-          const lowerFeature = feature.toLowerCase();
-          
-          // Structural elements
-          if (['building', 'house', 'home', 'structure', 'foundation', 'frame'].some(term => lowerFeature.includes(term))) {
-            categories.structural.push(feature);
-          }
-          // Interior features
-          else if (['interior', 'flooring', 'floor', 'ceiling', 'wall', 'furniture', 'cabinet', 'kitchen', 'bathroom', 'bedroom', 'living room', 'hardwood', 'laminate', 'carpet', 'tile'].some(term => lowerFeature.includes(term))) {
-            categories.interior.push(feature);
-          }
-          // Exterior features
-          else if (['roof', 'facade', 'siding', 'exterior', 'porch', 'deck', 'patio', 'garden', 'yard', 'landscaping', 'driveway', 'garage'].some(term => lowerFeature.includes(term))) {
-            categories.exterior.push(feature);
-          }
-          // Materials
-          else if (['wood', 'brick', 'stone', 'concrete', 'metal', 'glass', 'vinyl', 'stucco'].some(term => lowerFeature.includes(term))) {
-            categories.materials.push(feature);
-          }
-          // Architectural elements
-          else if (['window', 'door', 'architecture', 'column', 'archway', 'balcony', 'chimney'].some(term => lowerFeature.includes(term))) {
-            categories.architectural.push(feature);
-          }
-          // Location/area features
-          else if (['neighbourhood', 'residential area', 'street', 'location'].some(term => lowerFeature.includes(term))) {
-            categories.rooms.push(feature);
-          }
-        });
-
-        return categories;
-      };
-
-      const categorizedFeatures = categorizeFeatures(uniqueFeatures);
-      
-      const prompt = `Create a compelling property listing description based on the following analysis of property images:
-
-DETECTED FEATURES BY CATEGORY:
-${categorizedFeatures.structural.length > 0 ? `Structural Elements: ${categorizedFeatures.structural.join(', ')}` : ''}
-${categorizedFeatures.architectural.length > 0 ? `Architectural Features: ${categorizedFeatures.architectural.join(', ')}` : ''}
-${categorizedFeatures.exterior.length > 0 ? `Exterior Features: ${categorizedFeatures.exterior.join(', ')}` : ''}
-${categorizedFeatures.interior.length > 0 ? `Interior Features: ${categorizedFeatures.interior.join(', ')}` : ''}
-${categorizedFeatures.materials.length > 0 ? `Materials Detected: ${categorizedFeatures.materials.join(', ')}` : ''}
-${categorizedFeatures.rooms.length > 0 ? `Location/Area: ${categorizedFeatures.rooms.join(', ')}` : ''}
-
-Text found in images: ${allDetectedText}
-
-${propertyType ? `Property Type: ${propertyType}` : ''}
-${priceRange ? `Price Range: ${priceRange}` : ''}
-${targetAudience ? `Target Audience: ${targetAudience}` : ''}
-${marketingStyle ? `Marketing Style: ${marketingStyle}` : ''}
-
-Write a compelling property listing description that sounds like it was written by an experienced realtor. Be specific and descriptive, but natural and engaging. Focus on what makes this property desirable and unique.
-
-WRITING STYLE REQUIREMENTS:
-- Write in a warm, professional tone that real estate agents use
-- Start with an engaging opening that highlights the property's best features
-- Use natural, flowing language - avoid robotic or template-like phrasing
-- Include specific details about materials and features when mentioned (e.g., "beautiful hardwood floors" not just "flooring")
-- Create emotional appeal by describing how buyers will feel living there
-- End with a call to action that creates urgency
-- Keep it 150-250 words, structured in 2-3 natural paragraphs
-
-CONTENT GUIDELINES:
-- If hardwood/wood flooring is detected: mention "gleaming hardwood floors" or "beautiful wood flooring throughout"
-- If windows are prominent: describe "abundant natural light" or "stunning windows"
-- If facade/exterior is mentioned: highlight "exceptional curb appeal" or "striking architectural details"
-- If roof is noted: mention "well-maintained" or quality construction
-- For residential areas: emphasize "desirable neighborhood" or location benefits
-- Avoid listing features - instead weave them into descriptive sentences
-- Focus on lifestyle benefits and emotional appeal
-- Use active, engaging verbs and descriptive adjectives
-
-EXAMPLE TONE (adapt to detected features):
-"Welcome to this stunning [property type] that perfectly blends comfort and style. The moment you step inside, you'll be captivated by the gleaming hardwood floors that flow throughout the main living areas, creating an elegant and cohesive feel..."
-
-Make it sound like a listing a homeowner would be proud to share and buyers would be excited to see.`;
-
-      try {
-        console.log('Calling OpenAI with categorized features:', categorizedFeatures);
-        
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert real estate copywriter with 15+ years of experience creating compelling property descriptions that sell homes quickly. You specialize in identifying key selling points and crafting descriptions that create emotional connections with potential buyers. Your descriptions consistently help realtors achieve faster sales and higher offers.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_tokens: 400,
-          temperature: 0.7,
-        });
-
-        description = completion.choices[0]?.message?.content || '';
-        console.log('OpenAI response received:', description ? 'Success' : 'Empty response');
-      } catch (openaiError) {
-        console.error('OpenAI API error:', openaiError);
-        return NextResponse.json({
-          error: 'Failed to generate description with OpenAI. Please check your API key configuration.',
-          features: uniqueFeatures,
-          detectedText: allDetectedText,
-          analysisResults,
-        });
-      }
-    }
+    } catch (error) {
+      console.error('Description generation error:', error);
+      return NextResponse.json({
+        error: `Failed to generate description with ${apiService}. Please check your configuration.`,
+        features: finalFeatures.split(', '),
+        detectedText: allDetectedText,
+        analysisResults,
+      });
     }
 
     // Check if description was generated
     if (!description) {
       return NextResponse.json({
         error: 'Failed to generate description. Please check your AI service configuration.',
-        features: uniqueFeatures,
+        features: finalFeatures ? finalFeatures.split(', ') : uniqueFeatures,
         detectedText: allDetectedText,
         analysisResults,
       });
@@ -317,9 +378,10 @@ Make it sound like a listing a homeowner would be proud to share and buyers woul
 
     return NextResponse.json({
       description,
-      features: uniqueFeatures,
+      features: finalFeatures ? finalFeatures.split(', ') : uniqueFeatures,
       detectedText: allDetectedText,
       analysisResults,
+      usedFeatures: finalFeatures, // Include the actual features used for description
     });
 
   } catch (error) {

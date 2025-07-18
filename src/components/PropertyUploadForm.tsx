@@ -20,6 +20,7 @@ interface AnalysisResult {
   features: string[];
   loading: boolean;
   error: string | null;
+  usedFeatures?: string; // The actual features text used for generation
 }
 
 interface CustomizationOptions {
@@ -28,6 +29,7 @@ interface CustomizationOptions {
   marketingStyle: string;
   propertyType: string;
   apiService: string;
+  features: string;
 }
 
 export default function PropertyUploadForm() {
@@ -44,7 +46,8 @@ export default function PropertyUploadForm() {
     priceRange: '',
     marketingStyle: 'professional',
     propertyType: '',
-    apiService: 'openai'
+    apiService: 'openai',
+    features: ''
   });
 
   const processAndCompressFile = async (file: File): Promise<UploadedImage> => {
@@ -135,6 +138,7 @@ export default function PropertyUploadForm() {
       formData.append('marketingStyle', customization.marketingStyle);
       formData.append('propertyType', customization.propertyType);
       formData.append('apiService', customization.apiService);
+      formData.append('features', customization.features);
 
       const response = await fetch('/api/analyze-images', {
         method: 'POST',
@@ -150,7 +154,8 @@ export default function PropertyUploadForm() {
         description: data.description,
         features: data.features || [],
         loading: false,
-        error: null
+        error: null,
+        usedFeatures: data.usedFeatures
       });
     } catch (error) {
       setAnalysisResult(prev => ({
@@ -369,6 +374,22 @@ export default function PropertyUploadForm() {
                 </select>
               </div>
             </div>
+            
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Property Features (Optional)
+              </label>
+              <textarea
+                value={customization.features}
+                onChange={(e) => setCustomization(prev => ({ ...prev, features: e.target.value }))}
+                placeholder="Enter specific features you want highlighted (e.g., granite countertops, walk-in closets, hardwood floors, etc.). If left empty, features will be auto-detected from images."
+                rows={4}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500 resize-vertical"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Leave empty to auto-detect features from images, or add your own to enhance the description.
+              </p>
+            </div>
           </div>
 
           <button
@@ -406,14 +427,28 @@ export default function PropertyUploadForm() {
                 <p className="text-gray-800 leading-relaxed">{analysisResult.description}</p>
               </div>
               
+              {analysisResult.usedFeatures && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">
+                    Features Used for Description:
+                    <span className="text-sm font-normal text-gray-600 ml-2">
+                      {customization.features.trim() ? '(User Provided)' : '(Auto-Generated)'}
+                    </span>
+                  </h4>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-blue-800 text-sm">{analysisResult.usedFeatures}</p>
+                  </div>
+                </div>
+              )}
+              
               {analysisResult.features.length > 0 && (
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Detected Features:</h4>
+                  <h4 className="font-medium text-gray-900 mb-2">Detected Features from Images:</h4>
                   <div className="flex flex-wrap gap-2">
                     {analysisResult.features.map((feature, index) => (
                       <span
                         key={index}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                        className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm"
                       >
                         {feature}
                       </span>

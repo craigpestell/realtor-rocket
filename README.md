@@ -6,9 +6,11 @@ A Next.js 15 application that helps realtors generate compelling property listin
 
 - **Multi-Image Upload**: Drag and drop or click to upload multiple property images
 - **Dual AI Processing**: Choose between cloud-based OpenAI + Google Vision or local Ollama processing
+- **Two-Step Feature Generation**: Auto-detect features from images or provide custom features for better control
 - **AI Image Analysis**: Detect features, objects, and text in property images
 - **Smart Description Generation**: Create professional property descriptions with customization options
 - **Customizable Output**: Target specific audiences, price ranges, and marketing styles
+- **Feature Customization**: Override auto-detected features with your own custom feature list
 - **Modern UI**: Clean, responsive design optimized for realtor workflows
 - **Real-time Processing**: Instant feedback and processing status updates
 - **Local & Cloud Options**: Work offline with Ollama or use cloud APIs for maximum quality
@@ -108,9 +110,14 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 ## Usage
 
 1. **Upload Images**: Drag and drop or click to select property images
-2. **Review Preview**: See thumbnails of uploaded images with remove options
-3. **Generate Description**: Click "Generate Property Description" to analyze images
-4. **Get Results**: View the AI-generated description and detected features
+2. **Customize Settings**: Choose AI service, property type, target audience, and marketing style
+3. **Features (Optional)**: 
+   - Leave empty for auto-detection from images
+   - Or add custom features (e.g., "granite countertops, hardwood floors, walk-in closets")
+4. **Generate Description**: Click "Generate Property Description" to analyze images
+5. **Review Results**: View the generated description and see which features were used
+
+See [FEATURE_GENERATION.md](./FEATURE_GENERATION.md) for detailed information about the two-step feature generation process.
 
 ## Project Structure
 
