@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Theme Switching</title>
+    <script>
+        // Auto-click the theme button to test functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Testing theme switching...');
+            
+            // Find the theme button
+            const themeButton = document.querySelector('button[aria-label*="Switch to"], button[aria-label*="Toggle theme"]');
+            
+            if (themeButton) {
+                console.log('Theme button found:', themeButton);
+                
+                // Test clicking the button
+                function testThemeToggle() {
+                    const beforeTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                    console.log('Before click - theme:', beforeTheme);
+                    console.log('Before click - HTML classes:', document.documentElement.className);
+                    
+                    // Click the button
+                    themeButton.click();
+                    
+                    // Check after a short delay
+                    setTimeout(() => {
+                        const afterTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                        console.log('After click - theme:', afterTheme);
+                        console.log('After click - HTML classes:', document.documentElement.className);
+                        
+                        if (beforeTheme !== afterTheme) {
+                            console.log('✅ Theme switching works!');
+                        } else {
+                            console.log('❌ Theme switching failed');
+                        }
+                    }, 100);
+                }
+                
+                // Test immediately and after a delay
+                setTimeout(testThemeToggle, 1000);
+            } else {
+                console.log('❌ Theme button not found');
+            }
+        });
+    </script>
+</head>
+<body>
+    <div style="padding: 20px; font-family: Arial, sans-serif;">
+        <h1>Theme Switch Test</h1>
+        <p>This page will automatically test the theme switching functionality.</p>
+        <p>Check the browser console for results.</p>
+        
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Open this page</li>
+            <li>Open browser dev tools (F12)</li>
+            <li>Check the console tab</li>
+            <li>The script will automatically test the theme button</li>
+        </ol>
+    </div>
+</body>
+</html>

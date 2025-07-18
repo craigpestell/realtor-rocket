@@ -22,6 +22,14 @@ interface AnalysisResult {
   error: string | null;
 }
 
+interface CustomizationOptions {
+  targetAudience: string;
+  priceRange: string;
+  marketingStyle: string;
+  propertyType: string;
+  apiService: string;
+}
+
 export default function PropertyUploadForm() {
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
@@ -30,6 +38,13 @@ export default function PropertyUploadForm() {
     features: [],
     loading: false,
     error: null
+  });
+  const [customization, setCustomization] = useState<CustomizationOptions>({
+    targetAudience: 'general buyers',
+    priceRange: '',
+    marketingStyle: 'professional',
+    propertyType: '',
+    apiService: 'openai'
   });
 
   const processAndCompressFile = async (file: File): Promise<UploadedImage> => {
@@ -113,6 +128,13 @@ export default function PropertyUploadForm() {
       uploadedImages.forEach(image => {
         formData.append('images', image.file);
       });
+      
+      // Add customization parameters
+      formData.append('targetAudience', customization.targetAudience);
+      formData.append('priceRange', customization.priceRange);
+      formData.append('marketingStyle', customization.marketingStyle);
+      formData.append('propertyType', customization.propertyType);
+      formData.append('apiService', customization.apiService);
 
       const response = await fetch('/api/analyze-images', {
         method: 'POST',
@@ -260,6 +282,93 @@ export default function PropertyUploadForm() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Customization Options */}
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <h4 className="text-lg font-medium text-gray-900 mb-4">Customize Description</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Property Type
+                </label>
+                <select
+                  value={customization.propertyType}
+                  onChange={(e) => setCustomization(prev => ({ ...prev, propertyType: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                >
+                  <option value="">Auto-detect</option>
+                  <option value="house">House</option>
+                  <option value="apartment">Apartment</option>
+                  <option value="condo">Condo</option>
+                  <option value="townhouse">Townhouse</option>
+                  <option value="commercial">Commercial</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Target Audience
+                </label>
+                <select
+                  value={customization.targetAudience}
+                  onChange={(e) => setCustomization(prev => ({ ...prev, targetAudience: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                >
+                  <option value="general buyers">General Buyers</option>
+                  <option value="first-time buyers">First-Time Buyers</option>
+                  <option value="luxury buyers">Luxury Buyers</option>
+                  <option value="investors">Investors</option>
+                  <option value="families">Families</option>
+                  <option value="young professionals">Young Professionals</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Price Range
+                </label>
+                <input
+                  type="text"
+                  value={customization.priceRange}
+                  onChange={(e) => setCustomization(prev => ({ ...prev, priceRange: e.target.value }))}
+                  placeholder="e.g., $300,000 - $350,000"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Marketing Style
+                </label>
+                <select
+                  value={customization.marketingStyle}
+                  onChange={(e) => setCustomization(prev => ({ ...prev, marketingStyle: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                >
+                  <option value="professional">Professional</option>
+                  <option value="warm and inviting">Warm & Inviting</option>
+                  <option value="luxury and sophisticated">Luxury & Sophisticated</option>
+                  <option value="modern and trendy">Modern & Trendy</option>
+                  <option value="family-focused">Family-Focused</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  AI Service
+                </label>
+                <select
+                  value={customization.apiService}
+                  onChange={(e) => setCustomization(prev => ({ ...prev, apiService: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                >
+                  <option value="openai">OpenAI + Google Vision (Cloud)</option>
+                  <option value="ollama">Ollama (Local)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <button

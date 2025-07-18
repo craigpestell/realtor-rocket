@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Test - Working Version</title>
+    <script>
+        // This script runs before the page renders to prevent flash
+        (function() {
+            try {
+                const theme = localStorage.getItem('theme') || 
+                             (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.classList.add(theme);
+                console.log('Initial theme applied:', theme);
+            } catch (e) {
+                document.documentElement.classList.add('light');
+                console.log('Fallback to light theme');
+            }
+        })();
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div class="min-h-screen p-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex justify-between items-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Theme Test - Working Version</h1>
+                <button id="theme-toggle" 
+                        class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
+                    Toggle Theme
+                </button>
+            </div>
+            
+            <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg mb-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Status:</h2>
+                <div class="space-y-2 text-gray-600 dark:text-gray-300">
+                    <div>Current theme: <span id="theme-status" class="font-mono bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">loading...</span></div>
+                    <div>HTML classes: <span id="html-classes" class="font-mono bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">loading...</span></div>
+                    <div>Body background: <span id="body-bg" class="font-mono bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">loading...</span></div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-6 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Sample Content</h3>
+                <p class="text-gray-600 dark:text-gray-300">
+                    This content should switch between light and dark themes smoothly when you click the toggle button.
+                </p>
+            </div>
+
+            <div class="mt-6 p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg">
+                <h3 class="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Test Instructions:</h3>
+                <ol class="list-decimal list-inside space-y-1 text-gray-600 dark:text-gray-300">
+                    <li>Click the "Toggle Theme" button</li>
+                    <li>Watch the background and text colors change</li>
+                    <li>Check that the status updates correctly</li>
+                    <li>Refresh the page - theme should persist</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const theme = isDark ? 'dark' : 'light';
+            const htmlClasses = document.documentElement.className || 'none';
+            const bodyBg = window.getComputedStyle(document.body).backgroundColor;
+            
+            document.getElementById('theme-status').textContent = theme;
+            document.getElementById('html-classes').textContent = htmlClasses;
+            document.getElementById('body-bg').textContent = bodyBg;
+            
+            console.log('Theme updated:', theme);
+            console.log('HTML classes:', htmlClasses);
+            console.log('Body background:', bodyBg);
+        }
+
+        function toggleTheme() {
+            const htmlElement = document.documentElement;
+            const currentTheme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
+            
+            htmlElement.classList.remove('light', 'dark');
+            
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            htmlElement.classList.add(newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            console.log('Theme toggled from', currentTheme, 'to', newTheme);
+            updateStatus();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            updateStatus();
+        });
+    </script>
+</body>
+</html>

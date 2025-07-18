@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Fix</title>
+    <script>
+        // This script runs before the page renders to prevent flash
+        (function() {
+            const theme = localStorage.getItem('theme') || 
+                         (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.classList.add(theme);
+        })();
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div class="min-h-screen p-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex justify-between items-center mb-8">
+                <h1 class="text-3xl font-bold">Fixed Theme Test</h1>
+                <button id="theme-toggle" 
+                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                    Toggle Theme
+                </button>
+            </div>
+            
+            <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg">
+                <h2 class="text-xl font-semibold mb-4">This should work properly now:</h2>
+                <p class="text-gray-600 dark:text-gray-300">
+                    The theme should be applied immediately without any flash, and switching should work smoothly.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const htmlElement = document.documentElement;
+            const currentTheme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
+            
+            htmlElement.classList.remove('light', 'dark');
+            
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            htmlElement.classList.add(newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+        });
+    </script>
+</body>
+</html>

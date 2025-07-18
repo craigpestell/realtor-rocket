@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div class="min-h-screen p-8">
+        <div class="max-w-4xl mx-auto">
+            <header class="text-center mb-12 relative">
+                <div class="absolute top-0 right-0">
+                    <button id="theme-toggle" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:outline-none transition-colors">
+                        <span id="theme-icon">🌙</span>
+                        <span id="theme-text">Dark</span>
+                    </button>
+                </div>
+                <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                    Theme Test 🚀
+                </h1>
+                <p class="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                    Testing theme switching functionality
+                </p>
+            </header>
+
+            <main class="max-w-4xl mx-auto">
+                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Theme Status</h2>
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-4">
+                            <span class="text-gray-600 dark:text-gray-300">Current theme:</span>
+                            <span id="current-theme" class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">light</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-gray-600 dark:text-gray-300">HTML class:</span>
+                            <span id="html-class" class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">none</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-gray-600 dark:text-gray-300">Body computed bg:</span>
+                            <span id="body-bg" class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">unknown</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-6 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Sample Content</h3>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        This is sample content to test theme switching. In light mode, this should have a light background with dark text. In dark mode, it should have a dark background with light text.
+                    </p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        function updateThemeInfo() {
+            const htmlElement = document.documentElement;
+            const currentTheme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
+            const htmlClass = htmlElement.className || 'none';
+            const bodyBg = window.getComputedStyle(document.body).backgroundColor;
+            
+            document.getElementById('current-theme').textContent = currentTheme;
+            document.getElementById('html-class').textContent = htmlClass;
+            document.getElementById('body-bg').textContent = bodyBg;
+            
+            // Update button
+            const themeIcon = document.getElementById('theme-icon');
+            const themeText = document.getElementById('theme-text');
+            
+            if (currentTheme === 'light') {
+                themeIcon.textContent = '🌙';
+                themeText.textContent = 'Dark';
+            } else {
+                themeIcon.textContent = '☀️';
+                themeText.textContent = 'Light';
+            }
+        }
+
+        function toggleTheme() {
+            const htmlElement = document.documentElement;
+            const currentTheme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
+            
+            htmlElement.classList.remove('light', 'dark');
+            
+            if (currentTheme === 'light') {
+                htmlElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                htmlElement.classList.add('light');
+                localStorage.setItem('theme', 'light');
+            }
+            
+            updateThemeInfo();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial theme
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme) {
+                document.documentElement.classList.add(savedTheme);
+            } else if (prefersDark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.add('light');
+            }
+            
+            // Set up toggle button
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            
+            // Update display
+            updateThemeInfo();
+        });
+    </script>
+</body>
+</html>

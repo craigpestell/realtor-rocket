@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Theme Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div class="min-h-screen p-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex justify-between items-center mb-8">
+                <h1 class="text-3xl font-bold">Simple Theme Test</h1>
+                <button id="theme-toggle" 
+                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                    Toggle Theme
+                </button>
+            </div>
+            
+            <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg">
+                <h2 class="text-xl font-semibold mb-4">Current Status:</h2>
+                <div class="space-y-2">
+                    <div>Theme: <span id="theme-status">light</span></div>
+                    <div>HTML classes: <span id="html-classes">none</span></div>
+                    <div>Body background: <span id="body-bg">unknown</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const theme = isDark ? 'dark' : 'light';
+            const htmlClasses = document.documentElement.className || 'none';
+            const bodyBg = window.getComputedStyle(document.body).backgroundColor;
+            
+            document.getElementById('theme-status').textContent = theme;
+            document.getElementById('html-classes').textContent = htmlClasses;
+            document.getElementById('body-bg').textContent = bodyBg;
+            
+            console.log('Theme:', theme);
+            console.log('HTML classes:', htmlClasses);
+            console.log('Body background:', bodyBg);
+        }
+
+        function toggleTheme() {
+            const htmlElement = document.documentElement;
+            const currentTheme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
+            
+            htmlElement.classList.remove('light', 'dark');
+            
+            if (currentTheme === 'light') {
+                htmlElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                htmlElement.classList.add('light');
+                localStorage.setItem('theme', 'light');
+            }
+            
+            updateStatus();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            
+            // Set initial theme
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme) {
+                document.documentElement.classList.add(savedTheme);
+            } else if (prefersDark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.add('light');
+            }
+            
+            // Set up toggle button
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            
+            // Update status
+            updateStatus();
+        });
+    </script>
+</body>
+</html>
