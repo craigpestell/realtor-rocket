@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
-import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Upload, Loader2, X, ImageIcon } from 'lucide-react';
 import { compressImage, formatFileSize, isValidImageType, isFileSizeValid } from '../utils/imageCompression';
 import CompressionStats from './CompressionStats';
+import '../styles/property-description.css';
 
 interface UploadedImage {
   file: File;
@@ -46,9 +47,11 @@ export default function PropertyUploadForm() {
     priceRange: '',
     marketingStyle: 'professional',
     propertyType: '',
-    apiService: 'openai',
+    apiService: 'ollama',
     features: ''
   });
+  const [editableFeatures, setEditableFeatures] = useState<string[]>([]);
+  const [newFeature, setNewFeature] = useState('');
 
   const processAndCompressFile = async (file: File): Promise<UploadedImage> => {
     const id = Math.random().toString(36).substring(7);
@@ -138,7 +141,9 @@ export default function PropertyUploadForm() {
       formData.append('marketingStyle', customization.marketingStyle);
       formData.append('propertyType', customization.propertyType);
       formData.append('apiService', customization.apiService);
-      formData.append('features', customization.features);
+      // Use editable features if available, otherwise fall back to features textarea
+      const featuresToUse = editableFeatures.length > 0 ? editableFeatures.join(', ') : customization.features;
+      formData.append('features', featuresToUse);
 
       const response = await fetch('/api/analyze-images', {
         method: 'POST',
@@ -157,12 +162,48 @@ export default function PropertyUploadForm() {
         error: null,
         usedFeatures: data.usedFeatures
       });
+      
+      // If we got features back and don't have editable features yet, populate them
+      if (data.usedFeatures && editableFeatures.length === 0) {
+        const featuresArray = data.usedFeatures.split(',').map((f: string) => f.trim()).filter(Boolean);
+        setEditableFeatures(featuresArray);
+      }
     } catch (error) {
       setAnalysisResult(prev => ({
         ...prev,
         loading: false,
         error: error instanceof Error ? error.message : 'An error occurred'
       }));
+    }
+  };
+
+  // Feature management functions
+  const addFeature = () => {
+    if (newFeature.trim()) {
+      setEditableFeatures(prev => [...prev, newFeature.trim()]);
+      setNewFeature('');
+    }
+  };
+
+  const removeFeature = (index: number) => {
+    setEditableFeatures(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const editFeature = (index: number, newValue: string) => {
+    setEditableFeatures(prev => prev.map((feature, i) => i === index ? newValue : feature));
+  };
+
+  const populateFeaturesFromTextarea = () => {
+    if (customization.features.trim()) {
+      const featuresArray = customization.features.split(',').map(f => f.trim()).filter(Boolean);
+      setEditableFeatures(featuresArray);
+      setCustomization(prev => ({ ...prev, features: '' }));
+    }
+  };
+
+  const populateFeaturesFromDetected = () => {
+    if (analysisResult.features.length > 0) {
+      setEditableFeatures([...analysisResult.features]);
     }
   };
 
@@ -369,25 +410,121 @@ export default function PropertyUploadForm() {
                   onChange={(e) => setCustomization(prev => ({ ...prev, apiService: e.target.value }))}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                 >
-                  <option value="openai">OpenAI + Google Vision (Cloud)</option>
                   <option value="ollama">Ollama (Local)</option>
+                  <option value="openai">OpenAI + Google Vision (Cloud)</option>
                 </select>
               </div>
             </div>
             
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Property Features (Optional)
+                Property Features
               </label>
-              <textarea
-                value={customization.features}
-                onChange={(e) => setCustomization(prev => ({ ...prev, features: e.target.value }))}
-                placeholder="Enter specific features you want highlighted (e.g., granite countertops, walk-in closets, hardwood floors, etc.). If left empty, features will be auto-detected from images."
-                rows={4}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500 resize-vertical"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Leave empty to auto-detect features from images, or add your own to enhance the description.
+              
+              {/* Editable Features List */}
+              {editableFeatures.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Current Features:</h4>
+                  <div className="space-y-2 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
+                    {editableFeatures.map((feature, index) => (
+                      <div key={index} className="flex items-center gap-2 bg-white rounded border p-2">
+                        <input
+                          type="text"
+                          value={feature}
+                          onChange={(e) => editFeature(index, e.target.value)}
+                          className="flex-1 text-sm text-gray-900 border-none outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1"
+                        />
+                        <button
+                          onClick={() => removeFeature(index)}
+                          className="text-red-500 hover:text-red-700 p-1"
+                          title="Remove feature"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Add New Feature */}
+              <div className="mb-4">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newFeature}
+                    onChange={(e) => setNewFeature(e.target.value)}
+                    placeholder="Add a new feature (e.g., granite countertops)"
+                    className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+                    onKeyDown={(e) => e.key === 'Enter' && addFeature()}
+                  />
+                  <button
+                    onClick={addFeature}
+                    disabled={!newFeature.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+              
+              {/* Quick Population Options */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {customization.features.trim() && (
+                  <button
+                    onClick={populateFeaturesFromTextarea}
+                    className="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-full hover:bg-green-200"
+                  >
+                    Use Text Below ↓
+                  </button>
+                )}
+                {analysisResult.features.length > 0 && (
+                  <button
+                    onClick={populateFeaturesFromDetected}
+                    className="text-xs px-3 py-1 bg-purple-100 text-purple-800 rounded-full hover:bg-purple-200"
+                  >
+                    Use Detected Features
+                  </button>
+                )}
+                {editableFeatures.length > 0 && (
+                  <button
+                    onClick={() => setEditableFeatures([])}
+                    className="text-xs px-3 py-1 bg-red-100 text-red-800 rounded-full hover:bg-red-200"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+              
+              {/* Fallback Textarea */}
+              <details className="mb-2">
+                <summary className="text-sm text-gray-600 cursor-pointer hover:text-gray-800">
+                  Or use text input (click to expand)
+                </summary>
+                <div className="mt-2">
+                  <textarea
+                    value={customization.features}
+                    onChange={(e) => setCustomization(prev => ({ ...prev, features: e.target.value }))}
+                    placeholder="Enter comma-separated features (e.g., granite countertops, walk-in closets, hardwood floors)"
+                    rows={3}
+                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500 resize-vertical"
+                  />
+                  {customization.features.trim() && (
+                    <button
+                      onClick={populateFeaturesFromTextarea}
+                      className="mt-2 text-sm px-3 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                    >
+                      Convert to Editable List
+                    </button>
+                  )}
+                </div>
+              </details>
+              
+              <p className="text-sm text-gray-500">
+                {editableFeatures.length > 0 
+                  ? `${editableFeatures.length} feature(s) will be used for description generation.`
+                  : 'Add features above or leave empty to auto-detect from images.'
+                }
               </p>
             </div>
           </div>
@@ -424,7 +561,10 @@ export default function PropertyUploadForm() {
           ) : (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-gray-800 leading-relaxed">{analysisResult.description}</p>
+                <div 
+                  className="text-gray-800 leading-relaxed max-w-none property-description"
+                  dangerouslySetInnerHTML={{ __html: analysisResult.description }}
+                />
               </div>
               
               {analysisResult.usedFeatures && (

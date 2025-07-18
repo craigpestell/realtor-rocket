@@ -117,13 +117,39 @@ WRITING STYLE REQUIREMENTS:
 - Include specific details about materials and features when mentioned
 - Create emotional appeal by describing how buyers will feel living there
 - End with a call to action that creates urgency
-- Keep it 150-250 words, structured in 2-3 natural paragraphs
+
+FORMAT REQUIREMENTS:
+- Return the description formatted as HTML
+- Use proper HTML structure with headings, paragraphs, and lists
+- Structure should include:
+  * An engaging opening paragraph with key highlights
+  * Organized sections with <h3> headings for different areas (e.g., "Interior Features", "Outdoor Spaces", "Location Benefits")
+  * Use <ul> and <li> tags for listing specific features within each section
+  * Include a compelling closing paragraph with call to action
+- Keep total content equivalent to 200-300 words when rendered
+- Use semantic HTML tags for better structure
 
 CONTENT GUIDELINES:
 - Weave features into descriptive sentences naturally
 - Focus on lifestyle benefits and emotional appeal
 - Use active, engaging verbs and descriptive adjectives
 - Highlight unique selling points first
+- DO NOT describe specific furniture visible in staged photos (sofas, chairs, tables, decorations, etc.)
+- You MAY mention furniture possibilities or how spaces could be used (e.g., "perfect for a dining table", "ideal for your favorite reading chair")
+- Focus on permanent fixtures, finishes, architectural features, and built-in elements
+
+Example structure:
+<p>[Engaging opening paragraph with key highlights]</p>
+<h3>Interior Features</h3>
+<ul>
+<li>[Feature with descriptive detail]</li>
+<li>[Feature with lifestyle benefit]</li>
+</ul>
+<h3>Outdoor Spaces</h3>
+<ul>
+<li>[Outdoor feature description]</li>
+</ul>
+<p>[Compelling closing with call to action]</p>
 
 Make it sound like a listing a homeowner would be proud to share and buyers would be excited to see.`;
 
@@ -132,7 +158,7 @@ Make it sound like a listing a homeowner would be proud to share and buyers woul
       messages: [
         {
           role: 'system',
-          content: 'You are an expert real estate copywriter with 15+ years of experience creating compelling property descriptions that sell homes quickly. You specialize in identifying key selling points and crafting descriptions that create emotional connections with potential buyers.'
+          content: 'You are an expert real estate copywriter with 15+ years of experience creating compelling property descriptions that sell homes quickly. You specialize in identifying key selling points and crafting descriptions that create emotional connections with potential buyers. IMPORTANT: Never describe specific furniture visible in staged photos (sofas, chairs, tables, decorations, etc.) as staging furniture is not included with the property. However, you may mention furniture possibilities or how spaces could be used (e.g., "perfect for a dining table", "ideal for your favorite reading chair"). Focus on permanent fixtures, finishes, architectural features, and built-in elements. Always return your response as properly formatted HTML with headings, paragraphs, and bullet lists for better readability.'
         },
         {
           role: 'user',

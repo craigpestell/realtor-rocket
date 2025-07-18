@@ -56,7 +56,10 @@ export class OllamaClient {
 - Room types and layouts
 - Exterior features (roof, siding, landscaping, etc.)
 - Interior finishes and fixtures
+- Built-in elements and permanent installations
 - Unique selling points
+
+IMPORTANT: DO NOT include specific furniture visible in staged photos (sofas, chairs, tables, decorations, etc.) in your analysis. Focus only on permanent fixtures and architectural features.
 
 ${propertyType ? `Property Type: ${propertyType}` : ''}
 
@@ -101,12 +104,39 @@ ${targetAudience ? `Target Audience: ${targetAudience}` : ''}
 ${priceRange ? `Price Range: ${priceRange}` : ''}
 ${marketingStyle ? `Marketing Style: ${marketingStyle}` : ''}
 
-Create a compelling 150-250 word listing description that:
+Create a compelling listing description that:
 - Uses a warm, professional real estate tone
 - Weaves features naturally into descriptive sentences
 - Creates emotional appeal and lifestyle benefits
 - Includes a call to action
 - Sounds engaging, not robotic
+- NEVER describes specific furniture visible in staged photos (sofas, chairs, tables, decorations, etc.) - staging furniture is not included
+- MAY mention furniture possibilities or how spaces could be used (e.g., "perfect for a dining table", "ideal for your favorite reading chair")
+- Focuses on permanent fixtures, finishes, architectural features, and built-in elements
+
+FORMAT REQUIREMENTS:
+- Return the description formatted as HTML
+- Use proper HTML structure with headings, paragraphs, and lists
+- Structure should include:
+  * An engaging opening paragraph with key highlights
+  * Organized sections with <h3> headings for different areas (e.g., "Interior Features", "Outdoor Spaces", "Location Benefits")
+  * Use <ul> and <li> tags for listing specific features within each section
+  * Include a compelling closing paragraph with call to action
+- Keep total content equivalent to 200-300 words when rendered
+- Use semantic HTML tags for better structure
+
+Example structure:
+<p>[Engaging opening paragraph with key highlights]</p>
+<h3>Interior Features</h3>
+<ul>
+<li>[Feature with descriptive detail]</li>
+<li>[Feature with lifestyle benefit]</li>
+</ul>
+<h3>Outdoor Spaces</h3>
+<ul>
+<li>[Outdoor feature description]</li>
+</ul>
+<p>[Compelling closing with call to action]</p>
 
 Focus on making buyers excited about the property.`;
 
@@ -151,14 +181,20 @@ ANALYSIS REQUIREMENTS:
 - Observe exterior features like roofing, siding, landscaping
 - Look for unique selling points and premium features
 - Assess overall condition and maintenance level
+- IMPORTANT: Do NOT mention specific furniture visible in staged photos - focus only on permanent fixtures
 
 DESCRIPTION REQUIREMENTS:
-- Write a compelling 150-250 word listing description
+- Write a compelling listing description formatted as HTML
 - Use professional real estate language
 - Highlight the most attractive features first
 - Create emotional appeal and lifestyle benefits
 - Include a call to action
 - Sound natural and engaging, not robotic
+- NEVER describe specific furniture in staged photos - staging furniture is not included
+- MAY mention furniture possibilities or how spaces could be used (e.g., "perfect for a dining table")
+- Use proper HTML structure with headings (<h3>), paragraphs (<p>), and bullet lists (<ul><li>)
+- Structure content into organized sections for better readability
+- Keep total content equivalent to 200-300 words when rendered
 
 FORMAT YOUR RESPONSE AS:
 FEATURES: [comma-separated list of specific features identified]
